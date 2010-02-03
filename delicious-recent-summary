@@ -1,0 +1,168 @@
+#!/usr/bin/python2.5
+
+import feedparser
+import textwrap
+import datetime
+from htmlentitydefs import name2codepoint
+import re
+from pysqlite2 import dbapi2 as sqlite
+import os
+import sys
+
+# An sqlite database that keeps track of which links have already been
+# reported, and when the triggering number of new links was last hit:
+db_filename = os.environ['HOME'] + "/delicious-links.db"
+
+connection = sqlite.connect(db_filename)
+cursor = connection.cursor()
+
+cursor.execute("CREATE TABLE IF NOT EXISTS links ( url text, user text, updated_at timestamp )")
+cursor.execute("CREATE TABLE IF NOT EXISTS updates ( last_sent_at timestamp )")
+
+def usage():
+    print '''Usage:
+
+  get-nt-delicious <USER LIST FILE>  [NUMBER TRIGGER]
+
+<USER LIST FILE> should be a file which lists one delicious.com
+username on each line.
+
+If [NUMBER TRIGGER] is specified, only produce output if there
+have been more than that number of new bookmarks since the
+last time such a limit was exceeded.'''
+
+number_trigger = None
+
+if len(sys.argv) == 2:
+    pass
+elif len(sys.argv) == 3:
+    number_trigger = int(sys.argv[1],10)
+else:
+    usage()
+    sys.exit(-1)
+
+user_filename = sys.argv[1]
+
+users = []
+fp = open(user_filename)
+for line in fp:
+    stripped = line.strip()
+    if len(stripped) > 0:
+        users.append(stripped)
+fp.close()
+
+# Only report bookmarks that have been updated since 'since'.  By
+# default this is seven days ...
+since = datetime.datetime.now() - datetime.timedelta(days=7)
+
+if number_trigger:
+    # ... or if we're using a number trigger, make it the last time
+    # the trigger was reached:
+    cursor.execute("SELECT last_sent_at FROM updates ORDER BY last_sent_at DESC LIMIT 1")
+    row = cursor.fetchone()
+    if row:
+        since = datetime.datetime.strptime( row[0], "%Y-%m-%d %H:%M:%S" )
+
+def update_last_sent():
+    cursor.execute("INSERT INTO updates (last_sent_at) VALUES (CURRENT_TIMESTAMP)")
+    connection.commit()
+
+# These next two useful functions are from:
+#   http://snippets.dzone.com/posts/show/4569
+
+def substitute_entity(match):
+    ent = match.group(2)
+    if match.group(1) == "#":
+        return unichr(int(ent))
+    else:
+        cp = name2codepoint.get(ent)
+        if cp:
+            return unichr(cp)
+        else:
+            return match.group()
+
+def decode_htmlentities(string):
+    entity_re = re.compile("&(#?)(\d{1,5}|\w{1,8});")
+    return entity_re.subn(substitute_entity, string)[0]
+
+class Feed:
+    def __init__(self,user):
+        self.user = user
+        self.feed_url = "http://feeds.delicious.com/v2/rss/%s?count=100&plain" % user
+        self.parsed = feedparser.parse(self.feed_url)
+    def __str__(self):
+        return self.feed_url
+    # Add each entry to the global URL dictionary:
+    def add_entries_to_url_dictionary(self,since,dictionary):
+        d = dictionary
+        for e in self.parsed['entries']:
+            updated = datetime.datetime(*(e['updated_parsed'][0:7]))
+            if updated > since:
+                url = e['link']
+                d.setdefault(url,[])
+                summary = e.get('summary','')
+                # For some reason I don't understand, sometimes I get
+                # errors about there being no entry for 'author':
+                author = e.get('author','[author missing]')
+                title = e.get('title','[title missing]')
+                d[url].append( SimpleEntry(author,url,title,summary,updated ) )
+                d[url].sort( key=lambda se: se.updated )
+
+class SimpleEntry:
+    def __init__(self,user,url,title,summary,updated):
+        self.user = user
+        self.url = url
+        self.title = title
+        self.summary = summary
+        self.updated = updated
+
+url_dictionary = {}
+
+for u in users:
+    feed = Feed(u)
+    feed.add_entries_to_url_dictionary(since,url_dictionary)
+
+all_urls = url_dictionary.keys()
+
+if number_trigger and len(all_urls) < number_trigger:
+    sys.exit(-1)
+
+all_urls.sort( key=lambda u: url_dictionary[u][0].updated )
+
+summary_text = ""
+
+for u in all_urls:
+    # If this URL had been reported before the period we're
+    # considering, just ignore it:
+    cursor.execute("SELECT * FROM links WHERE url = ? AND updated_at < ?",(u,since))
+    rows = cursor.fetchall()
+    if len(rows) > 0:
+        continue
+    mentions = url_dictionary[u]
+    title = mentions[0].title
+    title = decode_htmlentities(title)
+    summary_text += title + "\n"
+    summary_text += u + "\n"
+    bookmarked_by = map( lambda m: m.user, mentions )
+    summary_text += "  (bookmarked by: %s)\n" % ( ", ".join(bookmarked_by) )
+    for m in mentions:
+        cursor.execute("SELECT * FROM links WHERE url = ? AND user = ? AND updated_at = ?",
+                       ( u, m.user, m.updated ))
+        rows = cursor.fetchall()
+        if len(rows) == 0:
+            cursor.execute("INSERT INTO links ( url, user, updated_at ) VALUES ( ?, ?, ? )", ( u, m.user, m.updated ))
+            connection.commit()
+        s = m.summary.strip()
+        s = decode_htmlentities(s)
+        if len(s) == 0:
+            continue
+        summary_text += "  %s says:\n" % m.user
+        lines = textwrap.wrap(s,64)
+        for l in lines:
+            summary_text += "    %s\n" % l
+    summary_text += "\n"
+
+print summary_text.encode('UTF-8')
+
+if number_trigger:
+    update_last_sent()
