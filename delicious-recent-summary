@@ -36,7 +36,7 @@ number_trigger = None
 if len(sys.argv) == 2:
     pass
 elif len(sys.argv) == 3:
-    number_trigger = int(sys.argv[1],10)
+    number_trigger = int(sys.argv[2],10)
 else:
     usage()
     sys.exit(-1)
