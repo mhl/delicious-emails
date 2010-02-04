@@ -1,0 +1,62 @@
+#!/usr/bin/python2.6
+
+import sys
+import smtplib
+
+from optparse import OptionParser
+from email.mime.text import MIMEText
+import email.charset
+from email.Charset import QP
+
+usage = "delicious-email-report [options] <recipient-address>"
+parser = OptionParser(usage=usage)
+parser.add_option("-f","--from",dest='from_address',
+                  metavar='FROM-ADDRESS',
+                  help="The From: address")
+parser.add_option("-s","--subject",dest='subject',
+                  metavar='SUBJECT',
+                  help="The Subject: line")
+parser.add_option("-r","--reply-to",dest='reply_to_address',
+                  metavar='REPLY-TO-ADDRESS',
+                  help="The Reply-To: line")
+parser.add_option("-p","--preamble",dest='preamble',
+                  metavar='PREAMBLE',
+                  help="The preamble line to add to the email")
+options,args = parser.parse_args()
+
+if len(args) != 1:
+    parser.print_help()
+    sys.exit(1)
+
+recipient_address = args[0]
+
+if not options.from_address:
+    print "You must specify a From: address\n"
+    parser.print_help()
+    sys.exit(2)
+
+if not options.subject:
+    print "You must specify a Subject: line\n"
+    parser.print_help()
+    sys.exit(3)
+
+email_text = sys.stdin.read()
+if len(email_text.strip()) == 0:
+    sys.exit(0)
+
+email.charset.add_charset('utf-8', body_enc=QP)
+
+if options.preamble:
+    email_text = options.preamble + "\n\n" + email_text
+
+message = MIMEText(email_text,'plain','utf-8')
+
+message['Subject'] = options.subject
+message['From'] = options.from_address
+message['To'] = recipient_address
+if options.reply_to_address:
+    message['Reply-To'] = options.reply_to_address
+
+s = smtplib.SMTP('localhost')
+s.sendmail(options.from_address, [recipient_address], message.as_string())
+s.quit()
