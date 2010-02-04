@@ -1,5 +1,8 @@
 #!/usr/bin/python2.6
 
+# If standard input is anything but whitespace, send it as a
+# quoted-printable UTF-8 plain text email to the address specified.
+
 import sys
 import smtplib
 
