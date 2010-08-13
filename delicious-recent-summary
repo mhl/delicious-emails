@@ -21,7 +21,7 @@ import sys
 
 # An sqlite database that keeps track of which links have already been
 # reported, and when the triggering number of new links was last hit:
-db_filename = os.environ['HOME'] + "/delicious-links.db"
+db_filename = os.path.join( os.environ['HOME'], "delicious-links.db" )
 
 connection = sqlite.connect(db_filename)
 cursor = connection.cursor()
@@ -111,20 +111,24 @@ class Feed:
                 url = e['link']
                 d.setdefault(url,[])
                 summary = e.get('summary','')
+                tags = None
+                if 'tags' in e:
+                    tags = [ x['term'] for x in e['tags'] if not re.search('^system:',x['term']) ]
                 # For some reason I don't understand, sometimes I get
                 # errors about there being no entry for 'author':
                 author = e.get('author','[author missing]')
                 title = e.get('title','[title missing]')
-                d[url].append( SimpleEntry(author,url,title,summary,updated ) )
+                d[url].append( SimpleEntry(author,url,title,summary,updated,tags ) )
                 d[url].sort( key=lambda se: se.updated )
 
 class SimpleEntry:
-    def __init__(self,user,url,title,summary,updated):
+    def __init__(self,user,url,title,summary,updated,tags):
         self.user = user
         self.url = url
         self.title = title
         self.summary = summary
         self.updated = updated
+        self.tags = tags
 
 url_dictionary = {}
 
@@ -170,6 +174,8 @@ for u in all_urls:
         lines = textwrap.wrap(s,64)
         for l in lines:
             summary_text += "    %s\n" % l
+        if m.tags:
+            summary_text += "  ["+(', '.join(m.tags))+"]\n"
     summary_text += "\n"
 
 print summary_text.encode('UTF-8')
