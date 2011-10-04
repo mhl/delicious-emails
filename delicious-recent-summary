@@ -106,6 +106,9 @@ class Feed:
     def add_entries_to_url_dictionary(self,since,dictionary):
         d = dictionary
         for e in self.parsed['entries']:
+            if not e['updated_parsed']:
+               print >> sys.stderr, "An entry in %s had no updated_parsed field - pubDate might be empty" % (self.feed_url)
+               continue
             updated = datetime.datetime(*(e['updated_parsed'][0:7]))
             if updated > since:
                 url = e['link']
