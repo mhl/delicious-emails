@@ -116,7 +116,7 @@ class Feed:
                 summary = e.get('summary','')
                 tags = None
                 if 'tags' in e:
-                    tags = [ x['term'] for x in e['tags'] if not re.search('^system:',x['term']) ]
+                    tags = [ x['term'] for x in e['tags'] if x['term'] and not re.search('^system:',x['term']) ]
                 # For some reason I don't understand, sometimes I get
                 # errors about there being no entry for 'author':
                 author = e.get('author','[author missing]')
