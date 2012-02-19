@@ -95,7 +95,7 @@ def decode_htmlentities(string):
     entity_re = re.compile("&(#?)(\d{1,5}|\w{1,8});")
     return entity_re.subn(substitute_entity, string)[0]
 
-class Feed:
+class DeliciousFeed:
     def __init__(self,user):
         self.user = user
         self.feed_url = "http://feeds.delicious.com/v2/rss/%s?count=100&plain" % user
@@ -136,7 +136,7 @@ class SimpleEntry:
 url_dictionary = {}
 
 for u in users:
-    feed = Feed(u)
+    feed = DeliciousFeed(u)
     feed.add_entries_to_url_dictionary(since,url_dictionary)
 
 all_urls = url_dictionary.keys()
