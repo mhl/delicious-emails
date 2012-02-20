@@ -18,7 +18,17 @@ import re
 from pysqlite2 import dbapi2 as sqlite
 import os
 import sys
+import simplejson
+import urllib2
+from cookielib import CookieJar
+from urlparse import urlparse
+from lxml import etree
 from collections import defaultdict
+
+# We need a cookie jar, or opening t.co links results in an infinite
+# 302 redirection loop:
+cj = CookieJar()
+url_opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
 
 # An sqlite database that keeps track of which links have already been
 # reported, and when the triggering number of new links was last hit:
@@ -138,6 +148,48 @@ url_dictionary = defaultdict(list)
 for u in users:
     feed = DeliciousFeed(u)
     feed.add_entries_to_url_dictionary(since,url_dictionary)
+
+# Also get Francis's ScraperWiki JSON of N&T people's tweets that
+# contain URLs and aren't replies:
+
+twitter_json_url = 'https://api.scraperwiki.com/api/1.0/datastore/sqlite?format=json&name=notes_and_theories_twitter_scraper&query=select+*+from+`swdata`&apikey='
+
+f = url_opener.open(twitter_json_url)
+table = simplejson.load(f)
+f.close()
+
+for row in table:
+    text = row['text'].strip()
+    text = re.sub('\s+', ' ', text)
+    first_url_match = re.search('https?://\S+', text)
+    if not first_url_match:
+        print >> sys.stderr, "Failed to find a URL in: ", text
+        continue
+    original_url = first_url_match.group(0)
+    parser = etree.HTMLParser()
+    try:
+        f = url_opener.open(original_url)
+        tree = etree.parse(f, parser)
+        url = f.geturl()
+        f.close()
+    except urllib2.HTTPError, e:
+        print >> sys.stderr, "Error fetching", original_url, "which was:", unicode(e)
+        continue
+    titles = tree.xpath('.//title')
+    if titles:
+        title = titles[0].text
+    else:
+        title = '[No <TITLE> element found]'
+    title = title.strip()
+    title = re.sub('\s+', ' ', title)
+    entry = SimpleEntry(row['from_user'],
+                        url,
+                        title,
+                        text,
+                        datetime.datetime.strptime(row['created_at'], '%Y-%m-%dT%H:%M:%S'),
+                        [])
+    url_dictionary[url].append(entry)
+    url_dictionary[url].sort( key=lambda se: se.updated )
 
 all_urls = url_dictionary.keys()
 
