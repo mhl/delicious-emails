@@ -159,6 +159,9 @@ table = json.load(f)
 f.close()
 
 for row in table:
+    created_at = datetime.datetime.strptime(row['created_at'], '%Y-%m-%dT%H:%M:%S')
+    if created_at < since:
+        continue
     text = row['text'].strip()
     text = re.sub('\s+', ' ', text)
     first_url_match = re.search('https?://\S+', text)
@@ -186,7 +189,7 @@ for row in table:
                         url,
                         title,
                         text,
-                        datetime.datetime.strptime(row['created_at'], '%Y-%m-%dT%H:%M:%S'),
+                        created_at,
                         [])
     url_dictionary[url].append(entry)
     url_dictionary[url].sort( key=lambda se: se.updated )
