@@ -181,13 +181,22 @@ for row in table:
         url = f.geturl()
         f.close()
     except urllib2.HTTPError, e:
-        print >> sys.stderr, "Error fetching", original_url, "which was:", unicode(e)
+        print >> sys.stderr, "HTTPError fetching", unicode(original_url), "which was:", unicode(e)
         continue
-    titles = tree.xpath('.//title')
-    if titles:
-        title = titles[0].text
+    except urllib2.URLError, e:
+        print >> sys.stderr, "URLError fetching", unicode(original_url), "which was:", unicode(e)
+        continue
+    root = tree.getroot()
+    if root is not None:
+        titles = root.xpath('.//title')
+        if titles:
+            title = titles[0].text
+            if not title:
+                title = '[Title was empty]'
+        else:
+            title = '[No title was found]'
     else:
-        title = '[No <TITLE> element found]'
+        title = '[Parsing as HTML failed]'
     title = title.strip()
     title = re.sub('\s+', ' ', title)
     entry = SimpleEntry(row['from_user'],
