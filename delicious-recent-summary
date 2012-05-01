@@ -18,7 +18,7 @@ import re
 from pysqlite2 import dbapi2 as sqlite
 import os
 import sys
-import simplejson
+import json
 import urllib2
 from cookielib import CookieJar
 from urlparse import urlparse
@@ -155,7 +155,7 @@ for u in users:
 twitter_json_url = 'https://api.scraperwiki.com/api/1.0/datastore/sqlite?format=json&name=notes_and_theories_twitter_scraper&query=select+*+from+`swdata`&apikey='
 
 f = url_opener.open(twitter_json_url)
-table = simplejson.load(f)
+table = json.load(f)
 f.close()
 
 for row in table:
