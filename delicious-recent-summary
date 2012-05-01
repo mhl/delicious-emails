@@ -169,6 +169,11 @@ for row in table:
         print >> sys.stderr, "Failed to find a URL in: ", text
         continue
     original_url = first_url_match.group(0)
+    # If there's a trailing close-banana, then probably someone's just
+    # put a URL in parentheses.  Although if there's an open-banana
+    # earlier in the URL  then it's probably intended to be part of the URL:
+    if not '(' in original_url:
+        original_url = original_url.rstrip(')')
     parser = etree.HTMLParser()
     try:
         f = url_opener.open(original_url)
