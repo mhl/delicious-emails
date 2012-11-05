@@ -176,17 +176,25 @@ for row in table:
     # earlier in the URL  then it's probably intended to be part of the URL:
     if not '(' in original_url:
         original_url = original_url.rstrip(')')
+    # Sometimes a non-ASCII character can end up in the URL, which
+    # will cause a UnicodeEncodeError when trying to open the URL.
+    # Check for that here:
+    try:
+        ascii_url = original_url.encode('ascii')
+    except UnicodeEncodeError, e:
+        print >> sys.stderr, "Found a non-ASCII character in the URL in Tweet with ID", row['id']
+        continue
     parser = etree.HTMLParser()
     try:
-        f = url_opener.open(original_url)
+        f = url_opener.open(ascii_url)
         tree = etree.parse(f, parser)
         url = f.geturl()
         f.close()
     except urllib2.HTTPError, e:
-        print >> sys.stderr, "HTTPError fetching", unicode(original_url), "which was:", unicode(e)
+        print >> sys.stderr, "HTTPError fetching", ascii_url, "which was:", unicode(e)
         continue
     except urllib2.URLError, e:
-        print >> sys.stderr, "URLError fetching", unicode(original_url), "which was:", unicode(e)
+        print >> sys.stderr, "URLError fetching", ascii_url, "which was:", unicode(e)
         continue
     root = tree.getroot()
     if root is not None:
