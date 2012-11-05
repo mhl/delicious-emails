@@ -1,4 +1,4 @@
-#!/usr/bin/python2.6
+#!/usr/bin/env python
 
 # This script produces a plain text (UTF-8 encoded) summary of recent
 # links posted to delicious.com by the users listed (one per line) in

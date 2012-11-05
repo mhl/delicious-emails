@@ -1,4 +1,4 @@
-#!/usr/bin/python2.6
+#!/usr/bin/env python
 
 # If standard input is anything but whitespace, send it as a
 # quoted-printable UTF-8 plain text email to the address specified.
