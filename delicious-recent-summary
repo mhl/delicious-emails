@@ -24,6 +24,9 @@ from cookielib import CookieJar
 from urlparse import urlparse
 from lxml import etree
 from collections import defaultdict
+import pytz
+
+utc = pytz.UTC
 
 # We need a cookie jar, or opening t.co links results in an infinite
 # 302 redirection loop:
@@ -69,7 +72,7 @@ with open(sys.argv[1]) as f:
 
 # Only report bookmarks that have been updated since 'since'.  By
 # default this is seven days ...
-since = datetime.datetime.now() - datetime.timedelta(days=7)
+since = datetime.datetime.now(utc) - datetime.timedelta(days=7)
 
 if number_trigger:
     # ... or if we're using a number trigger, make it the last time
@@ -115,7 +118,7 @@ class DeliciousFeed:
             if not e['updated_parsed']:
                print >> sys.stderr, "An entry in %s had no updated_parsed field - pubDate might be empty" % (self.feed_url)
                continue
-            updated = datetime.datetime(*(e['updated_parsed'][0:7]))
+            updated = utc.localize(datetime.datetime(*(e['updated_parsed'][0:7])))
             if updated > since:
                 url = e['link']
                 summary = e.get('summary','')
