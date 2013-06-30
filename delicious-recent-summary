@@ -64,15 +64,8 @@ else:
     usage()
     sys.exit(-1)
 
-user_filename = sys.argv[1]
-
-users = []
-fp = open(user_filename)
-for line in fp:
-    stripped = line.strip()
-    if len(stripped) > 0:
-        users.append(stripped)
-fp.close()
+with open(sys.argv[1]) as f:
+    accounts = json.load(f)
 
 # Only report bookmarks that have been updated since 'since'.  By
 # default this is seven days ...
@@ -147,7 +140,7 @@ class SimpleEntry:
 
 url_dictionary = defaultdict(list)
 
-for u in users:
+for u in accounts['delicious']:
     feed = DeliciousFeed(u)
     feed.add_entries_to_url_dictionary(since,url_dictionary)
 
