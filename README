@@ -1,9 +1,9 @@
 These scripts are useful for creating a regular email summary of links
-bookmarked on delicious.com by a group of your friends.
+mentioned on Delicious and Twitter by a group of your friends.
 
 'delicious-recent-summary' produces a plain text summary, either of
-the links in the last 7 days or since the last time [TRIGGER-NUMBER]
+the links in the last 7 days or since the last time --number-trigger
 links were output.  'delicious-email-report' just emails STDIN (if
 it's non-empty), so typically you might use this from cron as:
 
-  delicious-recent-summary usernames.txt 20 | delicious-email-report mailinglist@whereever -f 'Links Mailer <me@whereever>' -s 'recent delicious links' -r 'Mailing List <mailinglist@whereever>' -p "[This email contains recent links posted to delicious.com by N&T subscribers.]"
+  delicious-recent-summary --number-trigger=20 accounts.json | delicious-email-report mailinglist@whereever -f 'Links Mailer <me@whereever>' -s 'recent delicious links' -r 'Mailing List <mailinglist@whereever>' -p "[This email contains recent links posted to delicious.com by N&T subscribers.]"
