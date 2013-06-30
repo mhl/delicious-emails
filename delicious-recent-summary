@@ -24,9 +24,15 @@ from cookielib import CookieJar
 from urlparse import urlparse
 from lxml import etree
 from collections import defaultdict
+from twython import Twython
+import dateutil.parser
 import pytz
 
 utc = pytz.UTC
+
+with open(os.path.join(os.environ['HOME'],
+                       '.twitter-notesandtheories')) as fp:
+    twitter_oauth = json.load(fp)
 
 # We need a cookie jar, or opening t.co links results in an infinite
 # 302 redirection loop:
@@ -147,72 +153,75 @@ for u in accounts['delicious']:
     feed = DeliciousFeed(u)
     feed.add_entries_to_url_dictionary(since,url_dictionary)
 
-# Also get Francis's ScraperWiki JSON of N&T people's tweets that
-# contain URLs and aren't replies:
+# Also get everyone's tweets from the twitter API:
 
-twitter_json_url = 'https://api.scraperwiki.com/api/1.0/datastore/sqlite?format=json&name=notes_and_theories_twitter_scraper&query=select+*+from+`swdata`&apikey='
+twitter = Twython(twitter_oauth['consumer_key'],
+                  access_token=twitter_oauth['access_token'])
 
-f = url_opener.open(twitter_json_url)
-table = json.load(f)
-f.close()
-
-for row in table:
-    created_at = datetime.datetime.strptime(row['created_at'], '%Y-%m-%dT%H:%M:%S')
-    if created_at < since:
-        continue
-    text = row['text'].strip()
-    text = re.sub('\s+', ' ', text)
-    first_url_match = re.search('https?://\S+', text)
-    if not first_url_match:
-        print >> sys.stderr, "Failed to find a URL in: ", text
-        continue
-    original_url = first_url_match.group(0)
-    # If there's a trailing close-banana, then probably someone's just
-    # put a URL in parentheses.  Although if there's an open-banana
-    # earlier in the URL  then it's probably intended to be part of the URL:
-    if not '(' in original_url:
-        original_url = original_url.rstrip(')')
-    # Sometimes a non-ASCII character can end up in the URL, which
-    # will cause a UnicodeEncodeError when trying to open the URL.
-    # Check for that here:
-    try:
-        ascii_url = original_url.encode('ascii')
-    except UnicodeEncodeError, e:
-        print >> sys.stderr, "Found a non-ASCII character in the URL in Tweet with ID", row['id']
-        continue
-    parser = etree.HTMLParser()
-    try:
-        f = url_opener.open(ascii_url)
-        tree = etree.parse(f, parser)
-        url = f.geturl()
-        f.close()
-    except urllib2.HTTPError, e:
-        print >> sys.stderr, "HTTPError fetching", ascii_url, "which was:", unicode(e)
-        continue
-    except urllib2.URLError, e:
-        print >> sys.stderr, "URLError fetching", ascii_url, "which was:", unicode(e)
-        continue
-    root = tree.getroot()
-    if root is not None:
-        titles = root.xpath('.//title')
-        if titles:
-            title = titles[0].text
-            if not title:
-                title = '[Title was empty]'
+for twitter_username in accounts['twitter']:
+    for tweet in twitter.get_user_timeline(screen_name=twitter_username,
+                                           count=200):
+        text = tweet['text'].strip()
+        text = re.sub('\s+', ' ', text)
+        if "http://" not in text and "https://" not in text:
+            continue
+        if text.startswith('@'):
+            continue
+        tweet_id = tweet['id']
+        created_at = dateutil.parser.parse(tweet['created_at'])
+        if created_at < since:
+            continue
+        first_url_match = re.search('https?://\S+', text)
+        if not first_url_match:
+            print >> sys.stderr, "Failed to find a URL in: ", text
+            continue
+        original_url = first_url_match.group(0)
+        # If there's a trailing close-banana, then probably someone's just
+        # put a URL in parentheses.  Although if there's an open-banana
+        # earlier in the URL  then it's probably intended to be part of the URL:
+        if not '(' in original_url:
+            original_url = original_url.rstrip(')')
+        # Sometimes a non-ASCII character can end up in the URL, which
+        # will cause a UnicodeEncodeError when trying to open the URL.
+        # Check for that here:
+        try:
+            ascii_url = original_url.encode('ascii')
+        except UnicodeEncodeError, e:
+            print >> sys.stderr, "Found a non-ASCII character in the URL in Tweet with ID", tweet_id
+            continue
+        parser = etree.HTMLParser()
+        try:
+            f = url_opener.open(ascii_url)
+            tree = etree.parse(f, parser)
+            url = f.geturl()
+            f.close()
+        except urllib2.HTTPError, e:
+            print >> sys.stderr, "HTTPError fetching", ascii_url, "which was:", unicode(e)
+            continue
+        except urllib2.URLError, e:
+            print >> sys.stderr, "URLError fetching", ascii_url, "which was:", unicode(e)
+            continue
+        root = tree.getroot()
+        if root is not None:
+            titles = root.xpath('.//title')
+            if titles:
+                title = titles[0].text
+                if not title:
+                    title = '[Title was empty]'
+            else:
+                title = '[No title was found]'
         else:
-            title = '[No title was found]'
-    else:
-        title = '[Parsing as HTML failed]'
-    title = title.strip()
-    title = re.sub('\s+', ' ', title)
-    entry = SimpleEntry(row['from_user'],
-                        url,
-                        title,
-                        text,
-                        created_at,
-                        [])
-    url_dictionary[url].append(entry)
-    url_dictionary[url].sort( key=lambda se: se.updated )
+            title = '[Parsing as HTML failed]'
+        title = title.strip()
+        title = re.sub('\s+', ' ', title)
+        entry = SimpleEntry(twitter_username,
+                            url,
+                            title,
+                            text,
+                            created_at,
+                            [])
+        url_dictionary[url].append(entry)
+        url_dictionary[url].sort( key=lambda se: se.updated )
 
 all_urls = url_dictionary.keys()
 
