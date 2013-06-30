@@ -38,8 +38,6 @@ with open(os.path.join(os.environ['HOME'],
 # 302 redirection loop:
 cj = CookieJar()
 url_opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-# url_opener.addheaders.append(('User-Agent',
-#                               'Mozilla/5.0 (X11; U; Linux i686; en-GB; rv:1.9.2.3) Gecko/20100423 Ubuntu/10.04 (lucid) Firefox/3.6.3 GTB7.1'))
 
 # An sqlite database that keeps track of which links have already been
 # reported, and when the triggering number of new links was last hit:
