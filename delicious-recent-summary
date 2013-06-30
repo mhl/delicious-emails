@@ -153,10 +153,10 @@ class SimpleEntry:
 url_dictionary = defaultdict(list)
 
 if 'delicious' in accounts:
-    for u in accounts['delicious']:
+    for delicious_user in accounts['delicious']:
         if options.verbose:
             print >> sys.stderr, "Considering Delicious account:", u
-        feed = DeliciousFeed(u)
+        feed = DeliciousFeed(delicious_user)
         feed.add_entries_to_url_dictionary(since,url_dictionary)
 
 # Also get everyone's tweets from the twitter API:
