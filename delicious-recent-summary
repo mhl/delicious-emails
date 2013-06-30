@@ -27,6 +27,7 @@ from collections import defaultdict
 from twython import Twython
 import dateutil.parser
 import pytz
+from optparse import OptionParser
 
 utc = pytz.UTC
 
@@ -49,36 +50,37 @@ cursor = connection.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS links ( url text, user text, updated_at timestamp )")
 cursor.execute("CREATE TABLE IF NOT EXISTS updates ( last_sent_at timestamp )")
 
-def usage():
-    print '''Usage:
+parser = OptionParser()
+parser.add_option("-n", "--number-trigger",
+                  dest="number_trigger",
+                  type="int",
+                  help="Only output and update if there have been > this number of new URLs")
+parser.add_option("--dry-run",
+                  dest="dry_run",
+                  default=False, action="store_true",
+                  help="Don't update the last sent time")
+parser.usage = "%prog [options] <ACCOUNTS-JSON-FILE>"
+parser.description = """If --number-trigger is specified, output is
+only produced if there has beeen more than that number of new
+bookmarks since the last time that limit was exceeded.  Storing the
+time when it was exceeded can be suppressed with the --dry-run
+option."""
 
-  get-nt-delicious <USER LIST FILE>  [NUMBER TRIGGER]
+(options, args) = parser.parse_args()
 
-<USER LIST FILE> should be a file which lists one delicious.com
-username on each line.
+if len(args) != 1:
+    print >> sys.stderr, "You must supply an accounts filename"
+    parser.print_help()
+    sys.exit(1)
 
-If [NUMBER TRIGGER] is specified, only produce output if there
-have been more than that number of new bookmarks since the
-last time such a limit was exceeded.'''
-
-number_trigger = None
-
-if len(sys.argv) == 2:
-    pass
-elif len(sys.argv) == 3:
-    number_trigger = int(sys.argv[2],10)
-else:
-    usage()
-    sys.exit(-1)
-
-with open(sys.argv[1]) as f:
+with open(args[0]) as f:
     accounts = json.load(f)
 
 # Only report bookmarks that have been updated since 'since'.  By
 # default this is seven days ...
 since = datetime.datetime.now(utc) - datetime.timedelta(days=7)
 
-if number_trigger:
+if options.number_trigger:
     # ... or if we're using a number trigger, make it the last time
     # the trigger was reached:
     cursor.execute("SELECT last_sent_at FROM updates ORDER BY last_sent_at DESC LIMIT 1")
@@ -223,7 +225,7 @@ for twitter_username in accounts['twitter']:
 
 all_urls = url_dictionary.keys()
 
-if number_trigger and len(all_urls) < number_trigger:
+if options.number_trigger and len(all_urls) < options.number_trigger:
     sys.exit(-1)
 
 all_urls.sort( key=lambda u: url_dictionary[u][0].updated )
@@ -265,5 +267,5 @@ for u in all_urls:
 
 print summary_text.encode('UTF-8')
 
-if number_trigger:
+if options.number_trigger and not options.dry_run:
     update_last_sent()
