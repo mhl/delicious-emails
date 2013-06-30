@@ -90,7 +90,7 @@ if options.number_trigger:
     cursor.execute("SELECT last_sent_at FROM updates ORDER BY last_sent_at DESC LIMIT 1")
     row = cursor.fetchone()
     if row:
-        since = datetime.datetime.strptime( row[0], "%Y-%m-%d %H:%M:%S" )
+        since = utc.localize(datetime.datetime.strptime( row[0], "%Y-%m-%d %H:%M:%S" ))
 
 def update_last_sent():
     cursor.execute("INSERT INTO updates (last_sent_at) VALUES (CURRENT_TIMESTAMP)")
