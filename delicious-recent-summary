@@ -124,10 +124,15 @@ class DeliciousFeed:
     def add_entries_to_url_dictionary(self,since,dictionary):
         d = dictionary
         for e in self.parsed['entries']:
-            if not e['updated_parsed']:
-               print >> sys.stderr, "An entry in %s had no updated_parsed field - pubDate might be empty" % (self.feed_url)
-               continue
-            updated = utc.localize(datetime.datetime(*(e['updated_parsed'][0:7])))
+            if 'updated_parsed' in e:
+                date_field = e['updated_parsed']
+            elif 'published_parsed' in e:
+                date_field = e['published_parsed']
+            else:
+                print >> sys.stderr, "An entry in %s had no updated_parsed or published_parsed field - pubDate might be empty" % (self.feed_url)
+                print >> sys.stderr, "The entry was:", e
+                continue
+            updated = utc.localize(datetime.datetime(*(date_field[0:7])))
             if updated > since:
                 url = e['link']
                 summary = e.get('summary','')
