@@ -59,7 +59,7 @@ parser.add_option("--dry-run",
                   default=False, action="store_true",
                   help="Don't update the last sent time")
 parser.add_option("-v", "--verbose",
-                  dest="dry_run",
+                  dest="verbose",
                   default=False, action="store_true",
                   help="Output verbose progress to STDERR")
 parser.usage = "%prog [options] <ACCOUNTS-JSON-FILE>"
