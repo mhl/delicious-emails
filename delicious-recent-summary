@@ -19,6 +19,7 @@ import os
 import sys
 import json
 import urllib2
+import httplib
 from cookielib import CookieJar
 from urlparse import urlparse
 from lxml import etree
@@ -213,6 +214,9 @@ if 'twitter' in accounts:
                 continue
             except urllib2.URLError, e:
                 print >> sys.stderr, "URLError fetching", ascii_url, "which was:", unicode(e)
+                continue
+            except httplib.BadStatusLine, e:
+                print >> sys.stderr, "BadStatusLine fetching", ascii_url, "which was:", unicode(e)
                 continue
             root = tree.getroot()
             if root is not None:
