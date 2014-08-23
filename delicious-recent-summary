@@ -114,10 +114,10 @@ def decode_htmlentities(string):
     entity_re = re.compile("&(#?)(\d{1,5}|\w{1,8});")
     return entity_re.subn(substitute_entity, string)[0]
 
-class DeliciousFeed:
-    def __init__(self,user):
+class BookmarkFeed:
+    def __init__(self,user,feed_url_format):
         self.user = user
-        self.feed_url = "http://feeds.delicious.com/v2/rss/%s?count=100&plain" % user
+        self.feed_url = feed_url_format.format(user)
         self.parsed = feedparser.parse(self.feed_url)
     def __str__(self):
         return self.feed_url
@@ -158,11 +158,15 @@ class SimpleEntry:
 
 url_dictionary = defaultdict(list)
 
-if 'delicious' in accounts:
-    for delicious_user in accounts['delicious']:
+for bookmarking_site, feed_url_format in (
+    ('delicious', "http://feeds.delicious.com/v2/rss/{0}?count=100&plain"),
+    ('pinboard', 'https://feeds.pinboard.in/rss/u:{0}/?count=100'),
+):
+    for user in accounts.get(bookmarking_site, []):
         if options.verbose:
-            print >> sys.stderr, "Considering Delicious account:", u
-        feed = DeliciousFeed(delicious_user)
+            message = "Considering {0} account: {1}"
+            print >> sys.stderr, message.format(bookmarking_site, delicious_user)
+        feed = BookmarkFeed(user, feed_url_format)
         feed.add_entries_to_url_dictionary(since,url_dictionary)
 
 # Also get everyone's tweets from the twitter API:
