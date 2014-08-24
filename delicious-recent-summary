@@ -137,9 +137,15 @@ class BookmarkFeed:
             if updated > since:
                 url = e['link']
                 summary = e.get('summary','')
-                tags = None
+                tags = []
                 if 'tags' in e:
-                    tags = [ x['term'] for x in e['tags'] if x['term'] and not re.search('^system:',x['term']) ]
+                    for value in e['tags']:
+                        term = value['term']
+                        if term and not re.search(t'^system:', term):
+                            # Pinboard sometimes has multiple tags in
+                            # a single term, so make sure these are
+                            # split on spaces and commas:
+                            tags += re.split(r'[,\s]+', x['term'])
                 # For some reason I don't understand, sometimes I get
                 # errors about there being no entry for 'author':
                 author = e.get('author','[author missing]')
