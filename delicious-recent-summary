@@ -10,6 +10,7 @@
 # Copyright Mark Longair 2008-2013
 
 import feedparser
+from io import BytesIO
 import textwrap
 import datetime
 from htmlentitydefs import name2codepoint
@@ -28,17 +29,13 @@ from twython import Twython
 import dateutil.parser
 import pytz
 from optparse import OptionParser
+import requests
 
 utc = pytz.UTC
 
 with open(os.path.join(os.environ['HOME'],
                        '.twitter-notesandtheories')) as fp:
     twitter_oauth = json.load(fp)
-
-# We need a cookie jar, or opening t.co links results in an infinite
-# 302 redirection loop:
-cj = CookieJar()
-url_opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
 
 # An sqlite database that keeps track of which links have already been
 # reported, and when the triggering number of new links was last hit:
@@ -215,19 +212,13 @@ if 'twitter' in accounts:
                 continue
             parser = etree.HTMLParser()
             try:
-                f = url_opener.open(ascii_url)
-                tree = etree.parse(f, parser)
-                url = f.geturl()
-                f.close()
-            except urllib2.HTTPError, e:
-                print >> sys.stderr, "HTTPError fetching", ascii_url, "which was:", unicode(e)
+                response = requests.get(ascii_url)
+                response.raise_for_status()
+                url = response.url
+            except requests.exceptions.RequestException as e:
+                print >> sys.stderr, "Exception fetching", ascii_url, "which was:", unicode(e)
                 continue
-            except urllib2.URLError, e:
-                print >> sys.stderr, "URLError fetching", ascii_url, "which was:", unicode(e)
-                continue
-            except httplib.BadStatusLine, e:
-                print >> sys.stderr, "BadStatusLine fetching", ascii_url, "which was:", unicode(e)
-                continue
+            tree = etree.parse(BytesIO(response.content), parser)
             root = tree.getroot()
             if root is not None:
                 titles = root.xpath('.//title')
