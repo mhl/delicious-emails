@@ -141,11 +141,11 @@ class BookmarkFeed:
                 if 'tags' in e:
                     for value in e['tags']:
                         term = value['term']
-                        if term and not re.search(t'^system:', term):
+                        if term and not re.search(r'^system:', term):
                             # Pinboard sometimes has multiple tags in
                             # a single term, so make sure these are
                             # split on spaces and commas:
-                            tags += re.split(r'[,\s]+', x['term'])
+                            tags += re.split(r'[,\s]+', term)
                 # For some reason I don't understand, sometimes I get
                 # errors about there being no entry for 'author':
                 author = e.get('author','[author missing]')
